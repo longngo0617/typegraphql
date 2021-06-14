@@ -8,6 +8,7 @@ import session from "express-session";
 import connectRedis from "connect-redis";
 import cors from "cors";
 import Redis from "ioredis";
+import { COOKIE_NAME, __prod__ } from "./constants";
 
 const main = async () => {
   await createConnection();
@@ -19,6 +20,11 @@ const main = async () => {
     ) => {
       return !!req.session.userId;
     }
+  });
+
+  const apolloServer = new ApolloServer({
+    schema,
+    context: ({ req,res }) => ({ req, redis,res }),
   });
 
   const app = express();
@@ -41,21 +47,16 @@ const main = async () => {
       }),
       cookie: {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: __prod__,
         maxAge: 1000 * 60 * 60 * 24 * 7 * 365,// 7years
         sameSite: "lax",
       },
-      name: "qid",
+      name: COOKIE_NAME,
       secret: "aasdasdasd212312",
       resave: false,
       saveUninitialized: false,
     })
   );
-
-  const apolloServer = new ApolloServer({
-    schema,
-    context: ({ req }) => ({ req, redis }),
-  });
 
   apolloServer.applyMiddleware({ app });
 
