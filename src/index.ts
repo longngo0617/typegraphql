@@ -9,22 +9,23 @@ import connectRedis from "connect-redis";
 import cors from "cors";
 import Redis from "ioredis";
 import { COOKIE_NAME, __prod__ } from "./constants";
+import { graphqlUploadExpress } from "graphql-upload";
 
 const main = async () => {
   await createConnection();
 
   const schema = await buildSchema({
     resolvers: [UserResolver],
-    authChecker: (
-      {context:{req} }
-    ) => {
+    authChecker: ({ context: { req } }) => {
       return !!req.session.userId;
-    }
+    },
   });
 
   const apolloServer = new ApolloServer({
     schema,
-    context: ({ req,res }) => ({ req, redis,res }),
+    context: ({ req, res }) => ({ req, redis, res }),
+    uploads:false,
+    introspection:true,
   });
 
   const app = express();
@@ -48,7 +49,7 @@ const main = async () => {
       cookie: {
         httpOnly: true,
         secure: __prod__,
-        maxAge: 1000 * 60 * 60 * 24 * 7 * 365,// 7years
+        maxAge: 1000 * 60 * 60 * 24 * 7 * 365, // 7years
         sameSite: "lax",
       },
       name: COOKIE_NAME,
@@ -58,10 +59,12 @@ const main = async () => {
     })
   );
 
+  app.use(graphqlUploadExpress({ maxFieldSize: 1000000, maxFiles: 10 }));
+
   apolloServer.applyMiddleware({ app });
 
   app.listen(4000, () => {
-    console.log("server start on https://localhost:4000/graphql");
+    console.log("server start on http://localhost:4000/graphql");
   });
 };
 

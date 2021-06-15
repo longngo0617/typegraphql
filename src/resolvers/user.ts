@@ -18,6 +18,8 @@ import { isAuth } from "../middleware/isAuth";
 import { sendEmail } from "../utils/sendEmail";
 import { v4 } from "uuid";
 import { COOKIE_NAME, FORGET_PASSWORD_PREFIX } from "../constants";
+import { FileUpload, GraphQLUpload } from "graphql-upload";
+import { createWriteStream } from "fs";
 
 @InputType()
 class RegisterInput {
@@ -223,7 +225,7 @@ export class UserResolver {
   }
 
   @Mutation(() => Boolean)
-  async logout(@Ctx() { req, res }: MyContext) : Promise<Boolean> {
+  async logout(@Ctx() { req, res }: MyContext): Promise<Boolean> {
     return new Promise((resolve) =>
       req.session!.destroy((err) => {
         res.clearCookie(COOKIE_NAME);
@@ -231,9 +233,26 @@ export class UserResolver {
           console.log(err);
           return resolve(false);
         }
-        
+
         return resolve(true);
       })
+    );
+  }
+
+  @Mutation(() => Boolean)
+  async addProfilePicture(
+    @Arg("picture", () => GraphQLUpload)
+    { createReadStream, filename }: FileUpload
+  ): Promise<boolean> {
+    return new Promise(async (resolve, reject) =>
+      createReadStream()
+        .pipe(
+          createWriteStream(__dirname + `/../../../images/${filename}`, {
+            autoClose: true,
+          })
+        )
+        .on("finish", () => resolve(true))
+        .on("error", () => reject(false))
     );
   }
 }
